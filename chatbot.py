@@ -3,6 +3,8 @@ from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
+from langchain.chains.question_answering import load_qa_chain
+from langchain_community.chat_models import ChatOpenAI
 
 OPEN_API_KEY = "xxx"
 # Upload PDF file
@@ -30,8 +32,31 @@ if file is not None:
     chunks = text_splitter.split_text(text)
     # st.write(chunks)
 
-# Generating embeddings
-embeddings = OpenAIEmbeddings(openai_api_key=OPEN_API_KEY)
+    # Generating embeddings
+    embeddings = OpenAIEmbeddings(openai_api_key=OPEN_API_KEY)
 
-# Creating vector store - FAISS
-vector_store = FAISS.from_texts(chunks, embeddings)
+    # Creating vector store - FAISS
+    vector_store = FAISS.from_texts(chunks, embeddings)
+
+    # get user question
+    user_question = st.text_input("Type your question here")
+
+    # similarity search
+    if user_question:
+        match = vector_store.similarity_search(user_question)
+        # st.write(match)
+
+        # define the llm (paramter optimisation)
+        llm = ChatOpenAI(
+            openai_api_key = OPEN_API_KEY,
+            temperature = 0.4, # randomness
+            max_tokens = 1000, # max length of response
+            model_name = "gpt-3.5-turbo"
+        )
+
+        # output results
+        # chain -> take the question, get relevant document, pass it to the LLM, generate the output
+        chain = load_qa_chain(llm, chain_type="stuff")
+        response = chain.run(input_documents = match, question = user_question)
+        st.write(response)
+
